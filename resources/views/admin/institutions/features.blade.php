@@ -1,278 +1,216 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Feature Toggles - {{ config('app.name', 'Admin') }}</title>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 24px; 
-            background: #f9fafb;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            padding: 24px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        h2 { 
-            margin-top: 0; 
-            color: #1f2937;
-        }
-        .back-link {
-            display: inline-block;
-            margin-bottom: 16px;
-            color: #3b82f6;
-            text-decoration: none;
-        }
-        .back-link:hover {
-            text-decoration: underline;
-        }
-        .section {
-            margin-bottom: 24px;
-            padding: 16px;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-        }
-        .section h3 {
-            margin-top: 0;
-            margin-bottom: 12px;
-            color: #374151;
-            font-size: 18px;
-        }
-        .checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            padding: 8px;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-        .checkbox-item:hover {
-            background: #f3f4f6;
-        }
-        .checkbox-item input[type="checkbox"] {
-            margin-right: 10px;
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-        .checkbox-item label {
-            cursor: pointer;
-            font-size: 15px;
-            color: #374151;
-        }
-        .actions {
-            margin-top: 24px;
-            padding-top: 16px;
-            border-top: 1px solid #e5e7eb;
-        }
-        button {
-            padding: 10px 20px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 15px;
-            font-weight: 500;
-            transition: background 0.2s;
-        }
-        button:hover {
-            background: #2563eb;
-        }
-        button:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-        }
-        .status {
-            margin-left: 12px;
-            font-size: 14px;
-            color: #6b7280;
-        }
-        .status.success {
-            color: #059669;
-        }
-        .status.error {
-            color: #dc2626;
-        }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #6b7280;
-        }
-        .info-box {
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            color: #1e40af;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Feature Toggles - {{ $institution->name ?? 'Institution' }}</title>
+
+  <!-- Axios CDN (pastikan dimuat sebelum script yang memakai axios) -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+  <style>
+    body{ font-family: Inter, Arial; padding:20px; max-width:900px; margin:auto }
+    .card{ background:#fff; border-radius:8px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06) }
+    .group{ margin-bottom:18px; padding:12px; border:1px solid #eee; border-radius:6px }
+    .row{ display:flex; align-items:center; margin:6px 0 }
+    .row label{ flex:1; }
+    .row input[type="checkbox"]{ transform:scale(1.2) }
+    .btn{ padding:8px 12px; cursor:pointer }
+    .btn-primary{ background:#2563eb;color:#fff;border:none }
+    .muted{ color:#666 }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <a href="/admin/institutions" class="back-link">← Back to Institutions</a>
-        
-        <h2>Feature Toggles</h2>
-        
-        <div id="institution-info" class="info-box" style="display:none;">
-            <strong id="inst-name"></strong> (<span id="inst-code"></span>)
-        </div>
+  <a href="/admin/institutions">← Back to Institutions</a>
 
-        <div id="loading" class="loading">Loading features...</div>
-        
-        <div id="features-form" style="display:none;">
-            <div class="section">
-                <h3>Application Features</h3>
-                <div class="checkbox-group" id="features-group">
-                    <!-- Will be populated dynamically -->
-                </div>
-            </div>
+  <div class="card" style="margin-top:16px;">
+    <h1>Feature Toggles</h1>
+    <div id="alerts" style="margin-top:8px"></div>
 
-            <div class="section">
-                <h3>Attendance Features</h3>
-                <div class="checkbox-group" id="attendance-group">
-                    <!-- Will be populated dynamically -->
-                </div>
-            </div>
-
-            <div class="actions">
-                <button onclick="saveFeatures()" id="save-btn">Save Changes</button>
-                <span id="save-status" class="status"></span>
-            </div>
-        </div>
+    <div id="form" style="margin-top:18px">
+      <div class="muted">Loading features...</div>
     </div>
 
-    <script>
-        const institutionId = {{ $institutionId ?? 'null' }};
-        const csrf = document.querySelector('meta[name="csrf-token"]').content;
-        let currentFeatures = {};
+    <div style="margin-top:12px">
+      <!-- Save button always present so addEventListener tidak gagal -->
+      <button id="saveBtn" class="btn btn-primary">Save</button>
+    </div>
+  </div>
 
-        async function loadFeatures() {
-            if (!institutionId) {
-                document.getElementById('loading').textContent = 'Error: Institution ID not provided';
-                return;
-            }
+<script>
+(function(){
+  // CSRF header for axios (if meta exists)
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  if (window.axios && csrfMeta) {
+    axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfMeta.getAttribute('content');
+  }
 
-            try {
-                const res = await fetch(`/api/institutions/${institutionId}`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                const { institution, features } = data;
+  // Try get institutionId from server-rendered var first
+  let institutionId = @json($institution->id ?? null);
 
-                // Show institution info
-                document.getElementById('inst-name').textContent = institution.name;
-                document.getElementById('inst-code').textContent = institution.code;
-                document.getElementById('institution-info').style.display = 'block';
+  // Safe helper to set innerHTML/textContent
+  function setHtml(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  }
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
 
-                currentFeatures = features;
+  // Resolve institutionId from URL if server var empty
+  function resolveIdFromUrl() {
+    if (institutionId) return institutionId;
+    const m = window.location.pathname.match(/\/admin\/institutions\/(\d+)\/features/);
+    if (m && m[1]) return m[1];
+    const qp = new URLSearchParams(window.location.search);
+    const q = qp.get('id');
+    if (q) return q;
+    return null;
+  }
 
-                // Render features checkboxes
-                renderFeatureGroup('features', features.features || {}, 'features-group');
-                renderFeatureGroup('attendance', features.attendance || {}, 'attendance-group');
+  // Render error when id missing
+  function showNoIdError() {
+    setHtml('form', '<div style="color:#b00">Error: Institution ID not provided</div>');
+    const btn = document.getElementById('saveBtn');
+    if (btn) btn.disabled = true;
+  }
 
-                // Show form, hide loading
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('features-form').style.display = 'block';
-            } catch (err) {
-                console.error(err);
-                document.getElementById('loading').textContent = 
-                    `Error loading features: ${err.message}`;
-            }
+  // Render features map into the form
+  function renderFeatures(features) {
+    const container = document.getElementById('form');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const groups = Object.keys(features || {});
+    if (groups.length === 0) {
+      container.innerHTML = '<div>No feature data available.</div>';
+      return;
+    }
+
+    groups.forEach(g => {
+      const groupEl = document.createElement('div');
+      groupEl.className = 'group';
+      const title = document.createElement('h3');
+      title.textContent = g.charAt(0).toUpperCase() + g.slice(1);
+      groupEl.appendChild(title);
+
+      const keys = Object.keys(features[g] || {});
+      keys.forEach(k => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const label = document.createElement('label');
+        label.textContent = k.replace(/_/g,' ');
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.checked = !!features[g][k];
+        chk.onchange = () => { features[g][k] = chk.checked; };
+        row.appendChild(label);
+        row.appendChild(chk);
+        groupEl.appendChild(row);
+      });
+
+      container.appendChild(groupEl);
+    });
+  }
+
+  // Load features from API
+  async function loadFeatures(id) {
+    setHtml('form', '<div class="muted">Loading features...</div>');
+    try {
+      const res = await axios.get(`/api/institutions/${id}`);
+      const data = res.data || {};
+      const features = data.features || {};
+      renderFeatures(features);
+      setHtml('alerts', ''); // clear
+    } catch (e) {
+      console.error('Failed load features', e);
+      setHtml('form', '<div style="color:red">Gagal load: ' + (e.response?.status || e.message) + '</div>');
+    }
+  }
+
+  // Save flattened settings
+  async function saveFeatures(id, features) {
+    // flatten nested map to dotted keys
+    const settings = {};
+    Object.keys(features).forEach(g => {
+      Object.keys(features[g] || {}).forEach(k => {
+        settings[`${g}.${k}`] = features[g][k];
+      });
+    });
+
+    try {
+      const btn = document.getElementById('saveBtn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan...'; }
+      await axios.post(`/api/institutions/${id}/settings`, { settings });
+      setHtml('alerts', '<div style="color:green">Tersimpan.</div>');
+    } catch (e) {
+      console.error('Failed save settings', e);
+      setHtml('alerts', '<div style="color:red">Gagal simpan: ' + (e.response?.status || e.message) + '</div>');
+    } finally {
+      const btn = document.getElementById('saveBtn');
+      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+      // reload features to show fresh values
+      await loadFeatures(id);
+    }
+  }
+
+  // Kick off when DOM ready
+  document.addEventListener('DOMContentLoaded', function() {
+    institutionId = resolveIdFromUrl();
+    if (!institutionId) {
+      showNoIdError();
+      return;
+    }
+
+    // load initial features into a variable we can reference when saving
+    let currentFeatures = {};
+
+    // initial load and keep currentFeatures updated by render step
+    (async () => {
+      try {
+        const res = await axios.get(`/api/institutions/${institutionId}`);
+        currentFeatures = res.data?.features || {};
+        renderFeatures(currentFeatures);
+      } catch (e) {
+        console.error('initial load error', e);
+        setHtml('form', '<div style="color:red">Gagal load: ' + (e.response?.status || e.message) + '</div>');
+        return;
+      }
+    })();
+
+    // Attach save handler (null-safe)
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function() {
+        // ensure we get latest state from DOM-rendered checkboxes
+        // rebuild currentFeatures from DOM
+        const container = document.getElementById('form');
+        const newFeatures = {};
+        if (container) {
+          const groups = container.querySelectorAll('.group');
+          groups.forEach(groupEl => {
+            const titleEl = groupEl.querySelector('h3');
+            if (!titleEl) return;
+            const grp = titleEl.textContent.trim().toLowerCase();
+            newFeatures[grp] = {};
+            const rows = groupEl.querySelectorAll('.row');
+            rows.forEach(row => {
+              const label = row.querySelector('label')?.textContent?.trim() || null;
+              const key = label ? label.replace(/\s+/g, '_').toLowerCase() : null;
+              const chk = row.querySelector('input[type="checkbox"]');
+              if (key && chk) {
+                newFeatures[grp][key] = !!chk.checked;
+              }
+            });
+          });
         }
-
-        function renderFeatureGroup(prefix, features, containerId) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-
-            for (const [key, value] of Object.entries(features)) {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'checkbox-item';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.id = `${prefix}.${key}`;
-                checkbox.checked = value === true;
-                checkbox.dataset.prefix = prefix;
-                checkbox.dataset.key = key;
-
-                const label = document.createElement('label');
-                label.htmlFor = `${prefix}.${key}`;
-                label.textContent = formatLabel(key);
-
-                itemDiv.appendChild(checkbox);
-                itemDiv.appendChild(label);
-                container.appendChild(itemDiv);
-            }
-        }
-
-        function formatLabel(key) {
-            return key
-                .split('_')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-        }
-
-        async function saveFeatures() {
-            const saveBtn = document.getElementById('save-btn');
-            const statusEl = document.getElementById('save-status');
-
-            saveBtn.disabled = true;
-            statusEl.textContent = 'Saving...';
-            statusEl.className = 'status';
-
-            try {
-                // Collect all checkbox values into flat key structure
-                const settings = {};
-                const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-                
-                checkboxes.forEach(cb => {
-                    const prefix = cb.dataset.prefix;
-                    const key = cb.dataset.key;
-                    const fullKey = `${prefix}.${key}`;
-                    settings[fullKey] = cb.checked;
-                });
-
-                // Send to API
-                const res = await fetch(`/api/institutions/${institutionId}/settings`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrf 
-                    },
-                    body: JSON.stringify({ settings })
-                });
-
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-                statusEl.textContent = 'Saved successfully!';
-                statusEl.className = 'status success';
-
-                // Reload to show updated values
-                setTimeout(() => {
-                    loadFeatures();
-                    statusEl.textContent = '';
-                }, 2000);
-            } catch (err) {
-                console.error(err);
-                statusEl.textContent = `Save failed: ${err.message}`;
-                statusEl.className = 'status error';
-            } finally {
-                saveBtn.disabled = false;
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', loadFeatures);
-    </script>
+        // save using flattened keys
+        saveFeatures(institutionId, newFeatures);
+      });
+    }
+  });
+})();
+</script>
 </body>
 </html>

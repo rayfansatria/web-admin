@@ -19,6 +19,60 @@ class InstitutionController extends Controller
         return view('admin.institutions');
     }
 
+    // Halaman create form
+    public function create()
+    {
+        // show empty form
+        $institution = new Institution();
+        return view('admin.institutions.form', ['institution' => $institution, 'mode' => 'create']);
+    }
+
+    // Store new institution
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'code' => 'required|string|max:50|unique:institutions,code',
+            'name' => 'required|string|max:255',
+            'timezone' => 'nullable|string|max:100',
+            'logo_url' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $data['is_active'] = $request->has('is_active') ? (bool)$request->input('is_active') : true;
+
+        $inst = Institution::create($data);
+
+        // redirect to configure page for further setup
+        return redirect()->route('admin.institutions.configure', ['id' => $inst->id]);
+    }
+
+    // Halaman edit form (reuse same form view)
+    public function edit($id)
+    {
+        $institution = Institution::findOrFail($id);
+        return view('admin.institutions.form', ['institution' => $institution, 'mode' => 'edit']);
+    }
+
+    // Update existing institution
+    public function update(Request $request, $id)
+    {
+        $inst = Institution::findOrFail($id);
+
+        $data = $request->validate([
+            'code' => 'required|string|max:50|unique:institutions,code,' . $inst->id,
+            'name' => 'required|string|max:255',
+            'timezone' => 'nullable|string|max:100',
+            'logo_url' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $data['is_active'] = $request->has('is_active') ? (bool)$request->input('is_active') : false;
+
+        $inst->update($data);
+
+        return redirect()->route('admin.institutions.configure', ['id' => $inst->id]);
+    }
+
     // Halaman configure (Blade)
     public function show($id)
     {
@@ -115,4 +169,12 @@ class InstitutionController extends Controller
         
         return response()->json($query->orderBy('created_at', 'desc')->paginate($perPage));
     }
+
+
+    public function featuresPage($id)
+    {
+        $inst = Institution::findOrFail($id);
+        return view('admin.institutions.features', ['institution' => $inst]);
+    }
+
 }

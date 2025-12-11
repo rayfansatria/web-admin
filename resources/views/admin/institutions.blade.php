@@ -11,11 +11,16 @@
         th, td { border: 1px solid #ccc; padding: 8px; }
         th { background: #f4f4f4; text-align: left; }
         button { padding: 6px 10px; margin-right: 4px; }
+        .top-actions { margin-bottom: 12px; }
         .error { color: red; margin-top: 8px; }
     </style>
 </head>
 <body>
     <h2>Institutions</h2>
+
+    <div class="top-actions">
+        <a href="/admin/institutions/create"><button>Create App</button></a>
+    </div>
 
     <div id="list">Loading...</div>
 
@@ -41,6 +46,8 @@
                     <td>${i.is_active ? 'Active' : 'Inactive'}</td>
                     <td>
                         <a href="/admin/institutions/${i.id}/configure"><button>Manage</button></a>
+                        <a href="/admin/institutions/${i.id}/features"><button>Features</button></a>
+                        <a href="/admin/institutions/${i.id}/edit"><button>Edit</button></a>
                         <button onclick="generate(${i.id})">Generate APK</button>
                     </td>
                 </tr>`;
@@ -57,10 +64,6 @@
 
     async function generate(id) {
         alert('Generate APK untuk ID ' + id + ' (implementasi API generate di backend).');
-        // Contoh jika endpoint sudah siap:
-        // return axios.post(`/api/institutions/${id}/generate-app`, { platform: 'android' }, {
-        //   headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
-        // });
     }
 
     document.addEventListener('DOMContentLoaded', fetchList);

@@ -51,13 +51,16 @@
         <input id="app_name" placeholder="My App">
     </div>
 
-    <div class="actions">
-        <button onclick="saveSettings()">Simpan</button>
+
+
+    <div style="margin-top:12px">
+        <button class="btn btn-primary" onclick="saveSettings()">Simpan</button>
         <select id="platform">
             <option value="android">Android</option>
         </select>
         <button onclick="generate()">Generate APK</button>
         <span id="save-status" class="status"></span>
+        <a href="/admin/institutions/{{ $inst->id }}/features" style="margin-left:8px"><button>Manage Feature Toggles</button></a>
     </div>
 
     <div class="actions" style="margin-top:10px;">
