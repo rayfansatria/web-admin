@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Feature Toggles - {{ config('app.name', 'Admin') }}</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         body { 
             font-family: Arial, sans-serif; 
@@ -166,8 +165,10 @@
             }
 
             try {
-                const res = await axios.get(`/api/institutions/${institutionId}`);
-                const { institution, features } = res.data;
+                const res = await fetch(`/api/institutions/${institutionId}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const { institution, features } = data;
 
                 // Show institution info
                 document.getElementById('inst-name').textContent = institution.name;
@@ -186,7 +187,7 @@
             } catch (err) {
                 console.error(err);
                 document.getElementById('loading').textContent = 
-                    `Error loading features: ${err.response?.status || err.message}`;
+                    `Error loading features: ${err.message}`;
             }
         }
 
@@ -243,10 +244,16 @@
                 });
 
                 // Send to API
-                await axios.post(`/api/institutions/${institutionId}/settings`, 
-                    { settings }, 
-                    { headers: { 'X-CSRF-TOKEN': csrf } }
-                );
+                const res = await fetch(`/api/institutions/${institutionId}/settings`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf 
+                    },
+                    body: JSON.stringify({ settings })
+                });
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
                 statusEl.textContent = 'Saved successfully!';
                 statusEl.className = 'status success';
@@ -258,7 +265,7 @@
                 }, 2000);
             } catch (err) {
                 console.error(err);
-                statusEl.textContent = `Save failed: ${err.response?.status || err.message}`;
+                statusEl.textContent = `Save failed: ${err.message}`;
                 statusEl.className = 'status error';
             } finally {
                 saveBtn.disabled = false;
