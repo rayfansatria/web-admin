@@ -26,5 +26,6 @@ Route::post('/logout', function (Request $request) {
 Route::middleware(['web'])->group(function () {
     Route::get('/admin/institutions', [InstitutionController::class, 'index'])->name('admin.institutions');
     Route::get('/admin/institutions/{id}/configure', [InstitutionController::class, 'show'])->name('admin.institutions.configure');
+    Route::get('/admin/institutions/{id}/features', [InstitutionController::class, 'showFeatures'])->name('admin.institutions.features');
 });
 
