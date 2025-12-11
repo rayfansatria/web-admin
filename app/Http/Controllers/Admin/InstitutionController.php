@@ -106,29 +106,49 @@ class InstitutionController extends Controller
     }
 
     // API: update settings
-    public function updateSettings(Request $request, $id)
-    {
-        $payload = $request->input('settings', []);
+   public function updateSettings(Request $request, $id)
+{
+    $payload = $request->input('settings', []);
 
-        DB::transaction(function () use ($id, $payload) {
-            foreach ($payload as $key => $value) {
-                $type = is_array($value) ? 'json'
-                    : (is_bool($value) ? 'boolean'
-                    : (is_int($value) ? 'integer' : 'string'));
+    // Allow-list keys (permitted to be set from admin UI)
+    $allowedKeys = [
+        'attendance.allow_mobile',
+        'attendance.require_photo',
+        'attendance.liveness_detection',
+        'features.reports.enabled',
+        'features.class_management.enabled',
+        'notifications.push.enabled',
+        'branding.primary_color',
+        'branding.secondary_color',
+        'branding.logo_url',
+        'branding.app_name',
+        'build.package_name',
+        // tambah sesuai kebutuhan...
+    ];
 
-                InstitutionSetting::updateOrCreate(
-                    ['institution_id' => $id, 'key' => $key],
-                    [
-                        'value' => $type === 'json' ? json_encode($value) : (string) $value,
-                        'value_type' => $type,
-                    ]
-                );
-            }
-        });
+    // Filter incoming settings to only allowed ones
+    $filtered = array_filter($payload, function($val, $key) use ($allowedKeys) {
+        return in_array($key, $allowedKeys);
+    }, ARRAY_FILTER_USE_BOTH);
 
-        return response()->json(['ok' => true]);
-    }
+    DB::transaction(function () use ($id, $filtered) {
+        foreach ($filtered as $key => $value) {
+            $type = is_array($value) ? 'json'
+                : (is_bool($value) ? 'boolean'
+                : (is_int($value) ? 'integer' : 'string'));
 
+            InstitutionSetting::updateOrCreate(
+                ['institution_id' => $id, 'key' => $key],
+                [
+                    'value' => $type === 'json' ? json_encode($value) : (string) $value,
+                    'value_type' => $type,
+                ]
+            );
+        }
+    });
+
+    return response()->json(['ok' => true]);
+}
     // API: trigger build/generate APK
     public function generateApp(Request $request, $id)
     {

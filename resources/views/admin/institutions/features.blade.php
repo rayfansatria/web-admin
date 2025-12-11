@@ -18,6 +18,9 @@
     .btn{ padding:8px 12px; cursor:pointer }
     .btn-primary{ background:#2563eb;color:#fff;border:none }
     .muted{ color:#666 }
+    #alerts div { padding:8px 10px; border-radius:4px; margin-bottom:8px; }
+    #alerts .ok { background:#ecfdf5; color:#065f46; border:1px solid #bbf7d0; }
+    #alerts .err { background:#fff1f2; color:#b91c1c; border:1px solid #fecaca; }
   </style>
 </head>
 <body>
@@ -114,6 +117,15 @@
     });
   }
 
+  // Show temporary alert (type = 'ok' | 'err')
+  let alertTimeout = null;
+  function showAlert(message, type='ok') {
+    const cls = type === 'ok' ? 'ok' : 'err';
+    setHtml('alerts', `<div class="${cls}">${message}</div>`);
+    if (alertTimeout) clearTimeout(alertTimeout);
+    alertTimeout = setTimeout(() => { setHtml('alerts', ''); }, 3000);
+  }
+
   // Load features from API
   async function loadFeatures(id) {
     setHtml('form', '<div class="muted">Loading features...</div>');
@@ -143,10 +155,11 @@
       const btn = document.getElementById('saveBtn');
       if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan...'; }
       await axios.post(`/api/institutions/${id}/settings`, { settings });
-      setHtml('alerts', '<div style="color:green">Tersimpan.</div>');
+      // Show requested message "Fitur ditambahkan"
+      showAlert('Fitur ditambahkan', 'ok');
     } catch (e) {
       console.error('Failed save settings', e);
-      setHtml('alerts', '<div style="color:red">Gagal simpan: ' + (e.response?.status || e.message) + '</div>');
+      showAlert('Gagal simpan: ' + (e.response?.status || e.message), 'err');
     } finally {
       const btn = document.getElementById('saveBtn');
       if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
