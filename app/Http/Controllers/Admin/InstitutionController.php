@@ -26,6 +26,13 @@ class InstitutionController extends Controller
         return view('admin.institution_show', compact('inst'));
     }
 
+    // Halaman feature toggles (Blade)
+    public function showFeatures($id)
+    {
+        $inst = Institution::findOrFail($id);
+        return view('admin.institutions.features', ['institutionId' => $id]);
+    }
+
     // API: detail + settings (JSON)
     public function showApi($id)
     {
@@ -40,6 +47,7 @@ class InstitutionController extends Controller
         return response()->json([
             'institution' => $inst,
             'settings' => $settings,
+            'features' => $inst->features(),
         ]);
     }
 
@@ -92,5 +100,19 @@ class InstitutionController extends Controller
     {
         $b = AppBuild::findOrFail($buildId);
         return response()->json($b);
+    }
+
+    // API: list app builds (filterable by institution_id)
+    public function listBuilds(Request $request)
+    {
+        $query = AppBuild::query();
+
+        if ($request->has('institution_id')) {
+            $query->where('institution_id', $request->input('institution_id'));
+        }
+
+        $perPage = $request->input('per_page', 15);
+        
+        return response()->json($query->orderBy('created_at', 'desc')->paginate($perPage));
     }
 }
