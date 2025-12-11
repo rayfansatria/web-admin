@@ -26,7 +26,7 @@ class InstitutionController extends Controller
         return view('admin.institution_show', compact('inst'));
     }
 
-    // API: detail + settings (JSON)
+    // API: detail + settings (JSON) — sekarang juga mengembalikan 'features' terstruktur
     public function showApi($id)
     {
         $inst = Institution::findOrFail($id);
@@ -37,13 +37,17 @@ class InstitutionController extends Controller
                 return [$item->key => $val === null ? $item->value : $val];
             });
 
+        // tambahkan fitur terstruktur yang mudah dikonsumsi mobile
+        $features = $inst->features();
+
         return response()->json([
             'institution' => $inst,
             'settings' => $settings,
+            'features' => $features,
         ]);
     }
 
-    // API: update settings
+    // API: update settings (menerima POST atau PUT)
     public function updateSettings(Request $request, $id)
     {
         $payload = $request->input('settings', []);
@@ -92,5 +96,21 @@ class InstitutionController extends Controller
     {
         $b = AppBuild::findOrFail($buildId);
         return response()->json($b);
+    }
+
+    // API: list app builds (dipakai UI admin untuk menampilkan riwayat builds)
+    public function listBuilds(Request $request)
+    {
+        $institutionId = $request->query('institution_id');
+        $query = AppBuild::query()->orderBy('created_at', 'desc');
+
+        if ($institutionId) {
+            $query->where('institution_id', $institutionId);
+        }
+
+        $perPage = (int) $request->query('per_page', 20);
+        $builds = $query->paginate($perPage);
+
+        return response()->json($builds);
     }
 }
