@@ -112,18 +112,50 @@ class InstitutionController extends Controller
 
     // Allow-list keys (permitted to be set from admin UI)
     $allowedKeys = [
-        'attendance.allow_mobile',
-        'attendance.require_photo',
-        'attendance.liveness_detection',
+        // Feature toggles
+        'features.attendance',
+        'features.attendance.enabled',
+        'features.schedule',
+        'features.grades',
+        'features.announcements',
+        'features.messaging',
+        'features.reports_enabled',
         'features.reports.enabled',
         'features.class_management.enabled',
+        
+        // Attendance settings
+        'attendance.qr_code',
+        'attendance.geolocation',
+        'attendance.face_recognition',
+        'attendance.allow_mobile',
+        'attendance.require_photo',
+        'attendance.require_location',
+        'attendance.liveness_detection',
+        
+        // Notifications
         'notifications.push.enabled',
+        
+        // Branding
         'branding.primary_color',
         'branding.secondary_color',
         'branding.logo_url',
+        // camelCase variants used by generator
+        'branding.primaryColor',
+        'branding.logoUrl',
         'branding.app_name',
+        
+        // Build config
         'build.package_name',
-        // tambah sesuai kebutuhan...
+        'build.version',
+        'build.platform',
+        
+        // Legacy keys (backward compatibility)
+        'timezone',
+        'logo_url',
+        'primary_color',
+        'secondary_color',
+        'package_name',
+        'app_name',
     ];
 
     // Filter incoming settings to only allowed ones
