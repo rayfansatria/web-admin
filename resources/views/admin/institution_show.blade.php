@@ -51,13 +51,16 @@
         <input id="app_name" placeholder="My App">
     </div>
 
-    <div class="actions">
-        <button onclick="saveSettings()">Simpan</button>
+
+
+    <div style="margin-top:12px">
+        <button class="btn btn-primary" onclick="saveSettings()">Simpan</button>
         <select id="platform">
             <option value="android">Android</option>
         </select>
         <button onclick="generate()">Generate APK</button>
         <span id="save-status" class="status"></span>
+        <a href="/admin/institutions/{{ $inst->id }}/features" style="margin-left:8px"><button>Manage Feature Toggles</button></a>
     </div>
 
     <div class="actions" style="margin-top:10px;">
@@ -103,16 +106,16 @@ async function saveSettings() {
         const payload = {
             settings: {
                 timezone: document.getElementById('timezone').value,
-                logo_url: document.getElementById('logo_url').value,
-                primary_color: document.getElementById('primary_color').value,
-                secondary_color: document.getElementById('secondary_color').value,
-                package_name: document.getElementById('package_name').value,
-                app_name: document.getElementById('app_name').value,
+                'branding.logo_url': document.getElementById('logo_url').value,
+                'branding.primary_color': document.getElementById('primary_color').value,
+                'branding.secondary_color': document.getElementById('secondary_color').value,
+                'build.package_name': document.getElementById('package_name').value,
+                'branding.app_name': document.getElementById('app_name').value,
             }
         };
         await axios.post(`/api/institutions/${id}/settings`, payload, { headers: { 'X-CSRF-TOKEN': csrf } });
         document.getElementById('save-status').textContent = 'Tersimpan.';
-        load();
+        setTimeout(() => load(), 500);
     } catch (err) {
         document.getElementById('save-status').textContent = 'Gagal: ' + (err.response?.status || err.message);
     }
@@ -151,5 +154,6 @@ async function checkStatus() {
 
 document.addEventListener('DOMContentLoaded', load);
 </script>
+
 </body>
 </html>

@@ -20,11 +20,19 @@ Route::post('/logout', function (Request $request) {
     $request->session()->invalidate();
     $request->session()->regenerateToken();
     return redirect('/login');
-})->name('logout');
+})->name('logout.post');
 
 // Halaman admin
 Route::middleware(['web'])->group(function () {
     Route::get('/admin/institutions', [InstitutionController::class, 'index'])->name('admin.institutions');
-    Route::get('/admin/institutions/{id}/configure', [InstitutionController::class, 'show'])->name('admin.institutions.configure');
-});
 
+    // Configure & related
+    Route::get('/admin/institutions/{id}/configure', [InstitutionController::class, 'show'])->name('admin.institutions.configure');
+    Route::get('/admin/institutions/{id}/features', [InstitutionController::class, 'featuresPage'])->name('admin.institutions.features');
+
+    // Create / Edit web UI
+    Route::get('/admin/institutions/create', [InstitutionController::class, 'create'])->name('admin.institutions.create');
+    Route::post('/admin/institutions', [InstitutionController::class, 'store'])->name('admin.institutions.store');
+    Route::get('/admin/institutions/{id}/edit', [InstitutionController::class, 'edit'])->name('admin.institutions.edit');
+    Route::post('/admin/institutions/{id}', [InstitutionController::class, 'update'])->name('admin.institutions.update');
+});
