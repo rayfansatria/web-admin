@@ -1,8 +1,10 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\InstitutionController;
 use App\Models\Institution;
+use App\Models\AppBuild;
 
 // List institutions
 Route::get('/institutions', fn() =>
@@ -12,8 +14,8 @@ Route::get('/institutions', fn() =>
 // Detail + settings (JSON)
 Route::get('/institutions/{id}', [InstitutionController::class, 'showApi']);
 
-// Update settings (accept both POST and PUT)
-Route::match(['post', 'put'], '/institutions/{id}/settings', [InstitutionController::class, 'updateSettings']);
+// Update settings (accept POST or PUT)
+Route::match(['post','put'], '/institutions/{id}/settings', [InstitutionController::class, 'updateSettings']);
 
 // Generate APK
 Route::post('/institutions/{id}/generate-app', [InstitutionController::class, 'generateApp']);
@@ -21,5 +23,5 @@ Route::post('/institutions/{id}/generate-app', [InstitutionController::class, 'g
 // Cek status build
 Route::get('/builds/{buildId}', [InstitutionController::class, 'buildStatus']);
 
-// List app builds (filterable by institution_id)
+// List app builds (for admin UI)
 Route::get('/app-builds', [InstitutionController::class, 'listBuilds']);

@@ -1,5 +1,6 @@
 <?php
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
 
 class Institution extends Model
@@ -12,79 +13,84 @@ class Institution extends Model
     }
 
     /**
-     * Get settings as key->value map with decoded values
+     * Return settings as associative array: key => value (json decoded when applicable).
      */
-    public function settingsKeyValue()
+    public function settingsKeyValue(): array
     {
-        return $this->settings()->get()->mapWithKeys(function ($item) {
+        $rows = $this->settings()->get();
+        $map = $rows->mapWithKeys(function ($item) {
             $val = json_decode($item->value, true);
-            return [$item->key => $val === null ? $item->value : $val];
-        });
+            return [$item->key => ($val === null ? $item->value : $val)];
+        })->toArray();
+
+        return $map;
     }
 
     /**
-     * Return default nested feature structure
+     * Default structured features (used as fallback/merge).
      */
-    public function defaultFeaturesStructured()
+    public static function defaultFeaturesStructured(): array
     {
         return [
-            'features' => [
-                'attendance' => true,
-                'schedule' => true,
-                'grades' => true,
-                'announcements' => true,
-                'messaging' => false,
-            ],
             'attendance' => [
-                'qr_code' => true,
-                'geolocation' => false,
-                'face_recognition' => false,
+                'allow_mobile' => true,
+                'require_photo' => false,
+                'liveness_detection' => false,
+                'shift' => false,
             ],
+            // tambahkan kategori fitur lain bila perlu
         ];
     }
 
     /**
-     * Build nested features array by parsing institution_settings keys
-     * Supports prefixes "features." and "attendance."
+     * Build a nested features array from settings keys:
+     * - keys starting with 'features.' (features.xxx.yyy) will be nested under 'features'
+     * - keys starting with 'attendance.' will be nested under 'attendance'
+     *
+     * Returns merged result between defaults and stored settings.
      */
-    public function features()
+    public function features(): array
     {
-        $settings = $this->settingsKeyValue();
-        $defaults = $this->defaultFeaturesStructured();
-        
-        $result = $defaults;
+        $s = $this->settingsKeyValue();
+        $features = [];
 
-        foreach ($settings as $key => $value) {
-            // Parse keys like "features.attendance" or "attendance.qr_code"
-            if (str_starts_with($key, 'features.')) {
-                $subKey = substr($key, strlen('features.'));
-                $result['features'][$subKey] = $this->normalizeBoolean($value);
-            } elseif (str_starts_with($key, 'attendance.')) {
-                $subKey = substr($key, strlen('attendance.'));
-                $result['attendance'][$subKey] = $this->normalizeBoolean($value);
+        // helper buat set nested value
+        $setNested = function (&$arr, $keys, $value) use (&$setNested) {
+            $key = array_shift($keys);
+            if ($key === null) return;
+            if (count($keys) === 0) {
+                // normalize boolean-like strings
+                if (is_string($value) && in_array(strtolower($value), ['true', 'false', '1', '0'], true)) {
+                    $valLower = strtolower($value);
+                    $arr[$key] = ($valLower === 'true' || $valLower === '1');
+                } else {
+                    $arr[$key] = $value;
+                }
+                return;
             }
+            if (!isset($arr[$key]) || !is_array($arr[$key])) {
+                $arr[$key] = [];
+            }
+            $setNested($arr[$key], $keys, $value);
+        };
+
+        foreach ($s as $key => $val) {
+            if (strpos($key, 'features.') === 0) {
+                $sub = substr($key, strlen('features.'));
+                $parts = explode('.', $sub);
+                $setNested($features, $parts, $val);
+            } elseif (strpos($key, 'attendance.') === 0) {
+                $sub = substr($key, strlen('attendance.'));
+                $parts = $parts = array_merge(['attendance'], explode('.', $sub));
+                $setNested($features, $parts, $val);
+            }
+            // jika ada pattern lain yang ingin dimasukkan, tambahkan di sini
         }
 
-        return $result;
-    }
+        // Merge defaults: ensure default structure exists and saved settings override defaults
+        $defaults = self::defaultFeaturesStructured();
+        $merged = array_replace_recursive($defaults, $features);
 
-    /**
-     * Normalize boolean-like strings to actual booleans
-     */
-    private function normalizeBoolean($value)
-    {
-        if (is_bool($value)) {
-            return $value;
-        }
-        if (is_string($value)) {
-            $lower = strtolower($value);
-            if (in_array($lower, ['true', '1', 'yes', 'on'])) {
-                return true;
-            }
-            if (in_array($lower, ['false', '0', 'no', 'off', ''])) {
-                return false;
-            }
-        }
-        return (bool) $value;
+        return $merged;
     }
 }
