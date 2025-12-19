@@ -80,7 +80,14 @@ class InstitutionController extends Controller
         return view('admin.institution_show', compact('inst'));
     }
 
-    // API: detail + settings (JSON) — sekarang juga mengembalikan 'features' terstruktur
+    // Halaman feature toggles (Blade)
+    public function showFeatures($id)
+    {
+        $inst = Institution::findOrFail($id);
+        return view('admin.institutions.features', ['institutionId' => $id]);
+    }
+
+    // API: detail + settings (JSON)
     public function showApi($id)
     {
         $inst = Institution::findOrFail($id);
@@ -91,40 +98,89 @@ class InstitutionController extends Controller
                 return [$item->key => $val === null ? $item->value : $val];
             });
 
-        // tambahkan fitur terstruktur yang mudah dikonsumsi mobile
-        $features = $inst->features();
-
         return response()->json([
             'institution' => $inst,
             'settings' => $settings,
-            'features' => $features,
+            'features' => $inst->features(),
         ]);
     }
 
-    // API: update settings (menerima POST atau PUT)
-    public function updateSettings(Request $request, $id)
-    {
-        $payload = $request->input('settings', []);
+    // API: update settings
+   public function updateSettings(Request $request, $id)
+{
+    $payload = $request->input('settings', []);
 
-        DB::transaction(function () use ($id, $payload) {
-            foreach ($payload as $key => $value) {
-                $type = is_array($value) ? 'json'
-                    : (is_bool($value) ? 'boolean'
-                    : (is_int($value) ? 'integer' : 'string'));
+    // Allow-list keys (permitted to be set from admin UI)
+    $allowedKeys = [
+        // Feature toggles
+        'features.attendance',
+        'features.attendance.enabled',
+        'features.schedule',
+        'features.grades',
+        'features.announcements',
+        'features.messaging',
+        'features.reports_enabled',
+        'features.reports.enabled',
+        'features.class_management.enabled',
+        
+        // Attendance settings
+        'attendance.qr_code',
+        'attendance.geolocation',
+        'attendance.face_recognition',
+        'attendance.allow_mobile',
+        'attendance.require_photo',
+        'attendance.require_location',
+        'attendance.liveness_detection',
+        
+        // Notifications
+        'notifications.push.enabled',
+        
+        // Branding
+        'branding.primary_color',
+        'branding.secondary_color',
+        'branding.logo_url',
+        // camelCase variants used by generator
+        'branding.primaryColor',
+        'branding.logoUrl',
+        'branding.app_name',
+        
+        // Build config
+        'build.package_name',
+        'build.version',
+        'build.platform',
+        
+        // Legacy keys (backward compatibility)
+        'timezone',
+        'logo_url',
+        'primary_color',
+        'secondary_color',
+        'package_name',
+        'app_name',
+    ];
 
-                InstitutionSetting::updateOrCreate(
-                    ['institution_id' => $id, 'key' => $key],
-                    [
-                        'value' => $type === 'json' ? json_encode($value) : (string) $value,
-                        'value_type' => $type,
-                    ]
-                );
-            }
-        });
+    // Filter incoming settings to only allowed ones
+    $filtered = array_filter($payload, function($val, $key) use ($allowedKeys) {
+        return in_array($key, $allowedKeys);
+    }, ARRAY_FILTER_USE_BOTH);
 
-        return response()->json(['ok' => true]);
-    }
+    DB::transaction(function () use ($id, $filtered) {
+        foreach ($filtered as $key => $value) {
+            $type = is_array($value) ? 'json'
+                : (is_bool($value) ? 'boolean'
+                : (is_int($value) ? 'integer' : 'string'));
 
+            InstitutionSetting::updateOrCreate(
+                ['institution_id' => $id, 'key' => $key],
+                [
+                    'value' => $type === 'json' ? json_encode($value) : (string) $value,
+                    'value_type' => $type,
+                ]
+            );
+        }
+    });
+
+    return response()->json(['ok' => true]);
+}
     // API: trigger build/generate APK
     public function generateApp(Request $request, $id)
     {
@@ -152,19 +208,25 @@ class InstitutionController extends Controller
         return response()->json($b);
     }
 
-    // API: list app builds (dipakai UI admin untuk menampilkan riwayat builds)
+    // API: list app builds (filterable by institution_id)
     public function listBuilds(Request $request)
     {
-        $institutionId = $request->query('institution_id');
-        $query = AppBuild::query()->orderBy('created_at', 'desc');
+        $query = AppBuild::query();
 
-        if ($institutionId) {
-            $query->where('institution_id', $institutionId);
+        if ($request->has('institution_id')) {
+            $query->where('institution_id', $request->input('institution_id'));
         }
 
-        $perPage = (int) $request->query('per_page', 20);
-        $builds = $query->paginate($perPage);
-
-        return response()->json($builds);
+        $perPage = $request->input('per_page', 15);
+        
+        return response()->json($query->orderBy('created_at', 'desc')->paginate($perPage));
     }
+
+
+    public function featuresPage($id)
+    {
+        $inst = Institution::findOrFail($id);
+        return view('admin.institutions.features', ['institution' => $inst]);
+    }
+
 }
